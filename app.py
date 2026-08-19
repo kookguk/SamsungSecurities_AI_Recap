@@ -2,303 +2,404 @@ from __future__ import annotations
 
 import html
 import json
+from typing import Any
 
 import streamlit as st
 
-from src.analytics import calculate_metrics, evidence_lines
-from src.data_loader import DATA_DIR, customer_slice, load_demo_data
-from src.memory_store import crm_card, load_memories, save_goal, selected_goal
-from src.recap_service import fallback_recap, generate_recap, get_api_key, get_model
+from src.activity_upload import blank_template_csv, parse_activity_csv, sample_activity_csv
+from src.memory_store import load_memories, save_journey_memory
+from src.recap_service import (
+    fallback_journey,
+    fallback_mypick,
+    generate_journey,
+    generate_mypick_plan,
+    get_api_key,
+    get_model,
+)
 from src.styles import CSS
 
 
 st.set_page_config(
-    page_title="Remember Me AI | mPOP Demo",
+    page_title="Remember Me AI | 2026 Investment Recap",
     page_icon="💙",
-    layout="wide",
+    layout="centered",
     initial_sidebar_state="collapsed",
 )
 st.markdown(CSS, unsafe_allow_html=True)
+
+
+SLIDE_ICONS = {"taste": "✦", "stock": "◎", "market": "⌁", "pattern": "AI", "journey": "➜"}
+GOAL_ICONS = {"compass": "⌖", "habit": "↻", "balance": "◫", "study": "▤", "shield": "◇", "calendar": "▦"}
+CONTENT_ICONS = {"report": "▥", "lesson": "▤", "market": "⌁", "etf": "◫", "tax": "₩", "routine": "↻"}
 
 
 def safe(value: object) -> str:
     return html.escape(str(value))
 
 
-@st.cache_data
-def demo_data() -> dict:
-    return load_demo_data()
+def initialize_state() -> None:
+    defaults = {
+        "flow_stage": "upload",
+        "analysis_package": None,
+        "journey": None,
+        "selected_goal": None,
+        "mypick_plan": None,
+        "ai_source": None,
+        "session_api_key": "",
+        "flow_notice": None,
+    }
+    for key, value in defaults.items():
+        st.session_state.setdefault(key, value)
 
 
-def metrics_for(data: dict, customer_id: str) -> dict:
-    return calculate_metrics(customer_slice(data, customer_id))
+def reset_flow() -> None:
+    for key in ("analysis_package", "journey", "selected_goal", "mypick_plan", "ai_source", "flow_notice"):
+        st.session_state[key] = None
+    st.session_state["flow_stage"] = "upload"
+    st.rerun()
 
 
-def ensure_state(data: dict) -> None:
-    st.session_state.setdefault("recaps", {})
-    st.session_state.setdefault("recap_sources", {})
-    st.session_state.setdefault("session_api_key", "")
-    for customer in data["customers"]:
-        cid = customer["customer_id"]
-        st.session_state["recaps"].setdefault(cid, fallback_recap(cid))
-        st.session_state["recap_sources"].setdefault(cid, "Demo narrative")
+def progress_bar(active: int) -> None:
+    labels = ["CSV 분석", "AI Recap", "2027 목표", "my PICK"]
+    steps = "".join(
+        f'<div class="flow-step {"done" if index < active else "active" if index == active else ""}"><i>{index + 1}</i><span>{label}</span></div>'
+        for index, label in enumerate(labels)
+    )
+    st.markdown(f'<div class="flow-progress">{steps}</div>', unsafe_allow_html=True)
 
 
-def header(customer_name: str | None = None) -> None:
-    title = f"{safe(customer_name)}님의 투자 이야기" if customer_name else "세 사람, 세 가지 투자 이야기"
+def app_wordmark(back_label: str = "mPOP") -> None:
+    st.markdown(
+        f'<div class="app-wordmark"><span>‹ &nbsp;{safe(back_label)}</span><b>Remember Me <em>AI</em></b></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def api_settings() -> None:
+    secret_key = get_api_key(st.session_state.get("session_api_key"), st.secrets)
+    with st.expander("AI 연결 설정", expanded=False):
+        status = "연결 준비 완료" if secret_key else "데모 문구 모드"
+        st.caption(f"현재 상태: {status} · 키는 화면이나 로그에 표시하지 않습니다.")
+        key = st.text_input(
+            "OpenAI API key",
+            type="password",
+            value=st.session_state.get("session_api_key", ""),
+            placeholder="Streamlit Secrets 사용 시 비워두세요",
+        )
+        st.session_state["session_api_key"] = key
+        st.caption(f"Model: {get_model(st.secrets)} · Responses API Structured Output")
+
+
+def run_csv_analysis(raw: bytes, name_hint: str, source_name: str) -> None:
+    try:
+        with st.status("투자 기록을 읽고 있어요", expanded=True) as status:
+            st.write("CSV 스키마와 거래 숫자를 확인하는 중...")
+            package = parse_activity_csv(raw, name_hint)
+            st.write("반복된 종목·테마·시장 행동을 찾는 중...")
+            api_key = get_api_key(st.session_state.get("session_api_key"), st.secrets)
+            model = get_model(st.secrets)
+            if api_key:
+                st.write("AI가 Recap 장면과 다음 목표를 구성하는 중...")
+                try:
+                    journey = generate_journey(package["customer"], package["metrics"], api_key, model)
+                    ai_source = f"OpenAI · {model}"
+                except Exception as error:
+                    journey = fallback_journey(package["customer"], package["metrics"])
+                    ai_source = "Grounded demo fallback"
+                    st.session_state["flow_notice"] = f"OpenAI 호출이 완료되지 않아 근거 기반 데모 문구를 사용했습니다: {error}"
+            else:
+                journey = fallback_journey(package["customer"], package["metrics"])
+                ai_source = "Grounded demo fallback"
+                st.session_state["flow_notice"] = "API key가 없어 근거 기반 데모 문구로 진행했습니다. Secrets 연결 후에는 AI가 모든 문구를 새로 생성합니다."
+            status.update(label="2026 Investment Recap이 준비됐어요", state="complete", expanded=False)
+        package["source_name"] = source_name
+        st.session_state["analysis_package"] = package
+        st.session_state["journey"] = journey
+        st.session_state["ai_source"] = ai_source
+        st.session_state["flow_stage"] = "recap"
+        st.rerun()
+    except ValueError as error:
+        st.error(str(error))
+    except Exception as error:
+        st.error(f"CSV 분석 중 오류가 발생했습니다: {error}")
+
+
+def upload_view() -> None:
+    app_wordmark("mPOP")
+    progress_bar(0)
+    st.markdown(
+        """
+        <section class="upload-hero">
+          <div class="year-label">2026 MY INVESTMENT RECAP</div>
+          <div class="upload-orbit"><span>✦</span><b>AI</b><i>⌁</i></div>
+          <h1>한 해의 투자 기록을<br><strong>나만의 이야기</strong>로</h1>
+          <p>연간 거래·관심·콘텐츠 CSV를 올리면<br>AI가 투자 행동을 읽고 Recap을 만들어요.</p>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<div class="section-heading">내 투자 기록 불러오기</div>', unsafe_allow_html=True)
+    uploaded = st.file_uploader("연간 투자 활동 CSV", type=["csv"], label_visibility="collapsed")
+    name_hint = st.text_input("고객 이름", value="고객", placeholder="CSV에 이름 열이 없을 때 사용합니다")
+    if st.button("AI로 내 투자 기록 분석하기", type="primary", use_container_width=True, disabled=uploaded is None):
+        run_csv_analysis(uploaded.getvalue(), name_hint, uploaded.name)
+
+    st.markdown('<div class="or-divider"><span>또는 샘플로 체험</span></div>', unsafe_allow_html=True)
+    sample_names = {"김준호 · 테마 집중형": "C001", "이서연 · 장기 루틴형": "C002", "박민수 · 민감 반응형": "C003"}
+    sample_label = st.selectbox("샘플 고객", list(sample_names), label_visibility="collapsed")
+    sample_raw = sample_activity_csv(sample_names[sample_label])
+    sample_cols = st.columns(2)
+    with sample_cols[0]:
+        if st.button("샘플 CSV로 시작", use_container_width=True):
+            run_csv_analysis(sample_raw, sample_label.split(" · ")[0], f"sample_{sample_names[sample_label]}.csv")
+    with sample_cols[1]:
+        st.download_button("선택 샘플 다운로드", sample_raw, "sample_annual_activity.csv", "text/csv", use_container_width=True)
+    st.download_button("빈 CSV 템플릿 다운로드", blank_template_csv(), "annual_activity_template.csv", "text/csv", use_container_width=True)
+    st.markdown(
+        '<div class="privacy-note"><b>안심하고 체험하세요</b><span>업로드 데이터는 현재 Streamlit 세션에서만 분석하며, API에는 검증·집계된 행동지표만 전달합니다.</span></div>',
+        unsafe_allow_html=True,
+    )
+    api_settings()
+
+
+def recap_hero(customer: dict[str, Any], journey: dict[str, Any], source: str) -> None:
     st.markdown(
         f"""
-        <section class="mpop-shell">
-          <div class="mpop-top">
-            <div class="mpop-brand">‹ &nbsp; <b>my PICK</b></div>
-            <div class="live-pill"><i class="live-dot"></i> Remember Me AI</div>
-          </div>
-          <div class="hero-kicker"><span class="hero-year">2026</span> INVESTMENT RECAP ✦</div>
-          <h1 class="hero-title">{title}</h1>
-          <p class="hero-copy">거래·관심·콘텐츠 기록을 하나의 이야기로 연결하고,<br>내가 고른 다음 목표까지 기억해요.</p>
+        <section class="recap-hero">
+          <div class="year-label">2026 MY INVESTMENT RECAP</div>
+          <div class="recap-trophy"><i>✦</i><b>AI</b><span>↗</span></div>
+          <h1>{safe(journey['recap_title'])}</h1>
+          <p>{safe(journey['recap_subtitle'])}</p>
+          <div class="ai-badge">✦ {safe(source)}</div>
         </section>
         """,
         unsafe_allow_html=True,
     )
 
 
-def metric_cards(metrics: dict) -> None:
-    cards = [
-        ("🗓️", f"{metrics['avg_holding_days']:.0f}일", "평균 보유기간"),
-        ("🎯", f"{metrics['top_theme_share']:.0f}%", f"{metrics['top_theme']} 집중도"),
-        ("🌊", metrics["crash"]["label"].replace("급락기에 ", ""), "4월 급락기 행동"),
-        ("📚", f"{metrics['content']['top_topic_minutes']}분", f"{metrics['content']['top_topic']} 관심"),
-    ]
-    inner = "".join(
-        f'<div class="metric-card"><div class="metric-icon">{icon}</div><div class="metric-value">{safe(value)}</div><div class="metric-label">{safe(label)}</div></div>'
-        for icon, value, label in cards
-    )
-    st.markdown(f'<div class="metric-grid">{inner}</div>', unsafe_allow_html=True)
-
-
-def recap_card(metrics: dict, recap: dict, source: str) -> None:
-    evidence = "".join(f'<span class="evidence">{safe(line)}</span>' for line in evidence_lines(metrics))
-    source_label = "OPENAI GENERATED" if source.startswith("OpenAI") else "GROUNDED DEMO"
+def metric_strip(metrics: dict[str, Any]) -> None:
     st.markdown(
         f"""
-        <article class="recap-card">
-          <div class="pattern-chip">✦ AI PATTERN · {source_label}</div>
-          <div class="pattern-title">{safe(recap['headline'])}</div>
-          <p class="pattern-story">{safe(recap['story'])}</p>
-          <div class="evidence-row">{evidence}</div>
-          <div class="split-note">
-            <div class="note good"><div class="note-label">잘 이어온 점</div><div class="note-text">{safe(recap['strength'])}</div></div>
-            <div class="note watch"><div class="note-label">함께 점검할 점</div><div class="note-text">{safe(recap['watchout'])}</div></div>
-          </div>
+        <div class="metric-strip">
+          <div><b>{metrics['active_days']}</b><span>투자 활동일</span></div>
+          <div><b>{metrics['avg_holding_days']:.0f}일</b><span>평균 보유</span></div>
+          <div><b>{metrics['top_theme_share']:.0f}%</b><span>상위 테마</span></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def story_card(slide: dict[str, Any], index: int) -> None:
+    icon = SLIDE_ICONS.get(slide["icon"], "✦")
+    st.markdown(
+        f"""
+        <article class="story-card story-{index}">
+          <div class="story-number">{index}</div>
+          <div class="story-icon">{safe(icon)}</div>
+          <div class="story-kicker">{safe(slide['kicker'])}</div>
+          <h2>{safe(slide['headline'])}</h2>
+          <p>{safe(slide['body'])}</p>
+          <div class="story-evidence">{safe(slide['evidence'])}</div>
         </article>
         """,
         unsafe_allow_html=True,
     )
 
 
-def crm_html(card: dict) -> str:
-    return f"""
-      <article class="crm-card {safe(card['tone'])}">
-        <div class="crm-icon">{safe(card['icon'])}</div>
-        <div class="crm-eyebrow">{safe(card['eyebrow'])}</div>
-        <div class="crm-title">{safe(card['title'])}</div>
-        <div class="crm-body">{safe(card['body'])}</div>
-        <span class="crm-cta">{safe(card['cta'])} &nbsp;›</span>
-      </article>
-    """
-
-
-def ai_settings(customer: dict, metrics: dict) -> None:
-    with st.expander("AI 데모 설정 · OpenAI API 연결", expanded=False):
-        st.caption("키는 현재 Streamlit 세션에서만 사용하며 파일에 저장하지 않습니다.")
-        key = st.text_input(
-            "OpenAI API key",
-            type="password",
-            value=st.session_state.get("session_api_key", ""),
-            placeholder="sk-... (미입력 시 준비된 데모 문구 사용)",
-        )
-        st.session_state["session_api_key"] = key
-        model = get_model(st.secrets)
-        left, right = st.columns([1, 2])
-        with left:
-            generate_clicked = st.button("AI Recap 다시 만들기", type="primary", use_container_width=True)
-        with right:
-            st.caption(f"Responses API · {model} · 정형 지표만 전송")
-        if generate_clicked:
-            api_key = get_api_key(key, st.secrets)
-            if not api_key:
-                st.warning("API key를 입력하거나 .streamlit/secrets.toml에 설정해주세요.")
-                return
+def choose_goal(goal: dict[str, Any]) -> None:
+    package = st.session_state["analysis_package"]
+    journey = st.session_state["journey"]
+    customer, metrics = package["customer"], package["metrics"]
+    api_key = get_api_key(st.session_state.get("session_api_key"), st.secrets)
+    model = get_model(st.secrets)
+    with st.spinner("Recap과 목표에 어울리는 my PICK 정보를 탐색하고 있어요..."):
+        if api_key:
             try:
-                with st.spinner("2026년 행동을 고객의 이야기로 바꾸는 중..."):
-                    recap = generate_recap(customer, metrics, api_key, model)
-                st.session_state["recaps"][customer["customer_id"]] = recap
-                st.session_state["recap_sources"][customer["customer_id"]] = f"OpenAI · {model}"
-                st.success("근거 지표를 바탕으로 새 Recap을 만들었습니다.")
-                st.rerun()
+                plan = generate_mypick_plan(customer, metrics, journey, goal, api_key, model)
+                st.session_state["ai_source"] = f"OpenAI · {model}"
             except Exception as error:
-                st.error(f"OpenAI 호출에 실패했습니다. 준비된 데모 문구를 유지합니다. ({error})")
+                plan = fallback_mypick(customer, metrics, journey, goal)
+                st.session_state["flow_notice"] = f"my PICK AI 호출이 완료되지 않아 데모 구성을 사용했습니다: {error}"
+        else:
+            plan = fallback_mypick(customer, metrics, journey, goal)
+    st.session_state["selected_goal"] = goal
+    st.session_state["mypick_plan"] = plan
+    save_journey_memory(customer, journey, goal, plan)
+    st.session_state["flow_stage"] = "ready"
+    st.rerun()
 
 
-def personal_view(data: dict) -> None:
-    customer_names = [item["name"] for item in data["customers"]]
-    current_name = st.session_state.get("customer_selector", customer_names[0])
-    customer = next(item for item in data["customers"] if item["name"] == current_name)
-    header(customer["name"])
-    name = st.selectbox(
-        "고객 선택",
-        customer_names,
-        key="customer_selector",
-        label_visibility="collapsed",
-    )
-    customer = next(item for item in data["customers"] if item["name"] == name)
-    cid = customer["customer_id"]
-    metrics = metrics_for(data, cid)
-    recap = st.session_state["recaps"][cid]
-    source = st.session_state["recap_sources"][cid]
-
-    st.markdown('<div class="section-title">올해의 투자 리듬</div><div class="section-sub">숫자를 나열하지 않고, 반복된 행동을 먼저 보여드려요.</div>', unsafe_allow_html=True)
-    metric_cards(metrics)
-    recap_card(metrics, recap, source)
-
-    st.markdown('<div class="section-title">2027년, 무엇을 이어가고 싶나요?</div><div class="section-sub">직접 고른 목표만 Memory에 저장하고 다음 콘텐츠에 반영합니다.</div>', unsafe_allow_html=True)
-    current_goal = selected_goal(cid, customer["default_goal"])
-    default_index = customer["goal_options"].index(current_goal) if current_goal in customer["goal_options"] else 0
-    goal = st.radio(
-        "2027 목표",
-        customer["goal_options"],
-        index=default_index,
-        horizontal=True,
-        key=f"goal_{cid}",
-        label_visibility="collapsed",
-    )
-    if st.button("이 목표를 기억해줘", type="primary", use_container_width=True, key=f"save_{cid}"):
-        save_goal(cid, customer["name"], goal)
-        st.success(f"{customer['name']}님의 2027 목표를 Memory JSON에 저장했어요.")
-        st.rerun()
-
-    goal = selected_goal(cid, customer["default_goal"])
-    card = crm_card(customer, metrics, goal)
-    st.markdown('<div class="section-title">Stay With Me</div><div class="section-sub">저장된 목표와 올해 행동을 연결한 다음 CRM 카드예요.</div>', unsafe_allow_html=True)
-    st.markdown(crm_html(card), unsafe_allow_html=True)
-    st.markdown(
-        '<div class="data-note"><b>설계 원칙</b> · 이 화면은 투자 조언이나 종목 추천이 아니라, 과거 행동을 객관적으로 돌아보고 고객이 직접 다음 목표를 선택하도록 돕는 데모입니다.</div>',
-        unsafe_allow_html=True,
-    )
-    ai_settings(customer, metrics)
-
-
-def compare_view(data: dict) -> None:
-    header(None)
-    st.markdown('<div class="section-title">같은 시장, 서로 다른 Memory</div><div class="section-sub">모두 4월 −8.4% 급락을 겪었지만 행동·관심·목표에 따라 Recap과 CRM이 달라집니다.</div>', unsafe_allow_html=True)
-    columns = st.columns(3)
-    for column, customer in zip(columns, data["customers"]):
-        cid = customer["customer_id"]
-        metrics = metrics_for(data, cid)
-        recap = st.session_state["recaps"][cid]
-        goal = selected_goal(cid, customer["default_goal"])
-        card = crm_card(customer, metrics, goal)
-        with column:
-            st.markdown(
-                f"""
-                <article class="compare-card" style="--accent:{safe(customer['accent'])};--soft:{safe(customer['soft'])}">
-                  <div class="compare-avatar">{safe(customer['avatar'])}</div>
-                  <div class="compare-name">{safe(customer['name'])}</div>
-                  <div class="compare-type">{safe(customer['persona'])} · {safe(recap['pattern_name'])}</div>
-                  <div class="compare-headline">{safe(recap['headline'])}</div>
-                  <div class="compare-story">{safe(recap['story'])}</div>
-                  <div class="compare-metrics">
-                    <div class="compare-metric"><b>{metrics['avg_holding_days']:.0f}일</b><span>평균 보유</span></div>
-                    <div class="compare-metric"><b>{metrics['top_theme_share']:.0f}%</b><span>상위 테마</span></div>
-                    <div class="compare-metric"><b>{safe(metrics['crash']['code'].upper())}</b><span>급락기 행동</span></div>
-                    <div class="compare-metric"><b>{metrics['content']['top_topic_minutes']}분</b><span>상위 콘텐츠</span></div>
-                  </div>
-                  <span class="goal-badge">2027 목표 · {safe(goal)}</span>
-                </article>
-                """,
-                unsafe_allow_html=True,
-            )
-            st.markdown(crm_html(card), unsafe_allow_html=True)
-
-    st.markdown(
-        '<div class="data-note"><b>동일 이벤트 통제</b> · 세 고객 모두 2026-04-07~10의 동일한 기술주 급락 구간으로 분석했습니다. 차이는 시장이 아니라 그 구간의 매수·매도·보유 행동에서 나옵니다.</div>',
-        unsafe_allow_html=True,
-    )
-
-
-def memory_view(data: dict) -> None:
-    header("Memory")
-    st.markdown('<div class="section-title">AI Customer Memory</div><div class="section-sub">고객이 직접 제공한 목표(Zero-party Data)가 장기 CRM 연결점이 됩니다.</div>', unsafe_allow_html=True)
-    memories = load_memories()
-    st.markdown(f'<div class="memory-box">{safe(json.dumps(memories, ensure_ascii=False, indent=2))}</div>', unsafe_allow_html=True)
-    st.download_button(
-        "Memory JSON 다운로드",
-        data=json.dumps(memories, ensure_ascii=False, indent=2),
-        file_name="customer_memory.json",
-        mime="application/json",
-        use_container_width=True,
-    )
-    st.markdown('<div class="section-title">가상 고객 원천 데이터</div><div class="section-sub">데모 재현을 위해 거래·관심·콘텐츠 데이터를 분리했습니다.</div>', unsafe_allow_html=True)
-    download_columns = st.columns(3)
-    files = [
-        ("거래 CSV", "trades.csv", "text/csv"),
-        ("관심 CSV", "interest_events.csv", "text/csv"),
-        ("콘텐츠 CSV", "content_events.csv", "text/csv"),
-    ]
-    for column, (label, filename, mime) in zip(download_columns, files):
-        with column:
-            st.download_button(label, (DATA_DIR / filename).read_bytes(), filename, mime, use_container_width=True)
-    calculated = {
-        customer["customer_id"]: metrics_for(data, customer["customer_id"])
-        for customer in data["customers"]
-    }
-    export_columns = st.columns(2)
-    with export_columns[0]:
-        st.download_button(
-            "고객 설정 JSON",
-            (DATA_DIR / "customers.json").read_bytes(),
-            "customers.json",
-            "application/json",
-            use_container_width=True,
-        )
-    with export_columns[1]:
-        st.download_button(
-            "계산 지표 JSON",
-            json.dumps(calculated, ensure_ascii=False, indent=2),
-            "behavior_metrics.json",
-            "application/json",
-            use_container_width=True,
-        )
-    st.markdown(
-        '<div class="data-note"><b>데모 데이터</b> · 화면의 고객·거래·관심·콘텐츠 기록은 모두 가상이며 실제 고객정보를 포함하지 않습니다. 실제 적용 시 데이터 보존기간, 동의, 설명 가능성, 준법 검토가 필요합니다.</div>',
-        unsafe_allow_html=True,
-    )
-
-
-def footer_nav() -> None:
+def goal_cards(journey: dict[str, Any]) -> None:
     st.markdown(
         """
-        <div class="ticker"><b>KOSPI</b><span class="down">▼ 2,842.17&nbsp; 1.18%</span><span class="closed">장종료</span></div>
-        <div class="bottom-nav"><span>⌂ 홈</span><span>☆ 관심종목</span><span>⌁ 종합차트</span><span>☰ 메뉴</span></div>
+        <section class="goal-intro">
+          <span>AI NEXT GOAL</span>
+          <h2>2027년에는 어떤 투자자가 되고 싶나요?</h2>
+          <p>정해진 목록이 아니라, 올해의 Recap에서 AI가 새롭게 만든 세 가지 목표예요.</p>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+    for index, goal in enumerate(journey["goals"], start=1):
+        icon = GOAL_ICONS.get(goal["icon"], "⌖")
+        st.markdown(
+            f"""
+            <article class="goal-card">
+              <div class="goal-icon">{safe(icon)}</div>
+              <div><span>추천 목표 {index}</span><h3>{safe(goal['title'])}</h3><p>{safe(goal['reason'])}</p><small>첫 단계 · {safe(goal['first_step'])}</small></div>
+            </article>
+            """,
+            unsafe_allow_html=True,
+        )
+        if st.button(f"‘{goal['title']}’ 선택", key=f"choose_{goal['goal_id']}", use_container_width=True):
+            choose_goal(goal)
+
+
+def recap_view(show_dialog: bool = False) -> None:
+    package = st.session_state["analysis_package"]
+    journey = st.session_state["journey"]
+    app_wordmark("mPOP")
+    progress_bar(3 if show_dialog else 1)
+    recap_hero(package["customer"], journey, st.session_state["ai_source"])
+    metric_strip(package["metrics"])
+    notice = st.session_state.get("flow_notice")
+    if notice:
+        st.info(notice)
+    st.markdown('<div class="section-heading">AI가 발견한 나의 투자 이야기</div>', unsafe_allow_html=True)
+    for index, slide in enumerate(journey["slides"], start=1):
+        story_card(slide, index)
+    goal_cards(journey)
+    with st.expander("분석 근거 확인"):
+        st.json(package["metrics"], expanded=False)
+        st.caption(f"파일: {package['source_name']} · 전체 {package['row_count']}행 · 제외 {package['skipped_count']}행")
+    if st.button("다른 CSV 분석하기", use_container_width=True):
+        reset_flow()
+    if show_dialog:
+        mypick_ready_dialog()
+
+
+@st.dialog("Stay With Me", width="small")
+def mypick_ready_dialog() -> None:
+    plan = st.session_state["mypick_plan"]
+    goal = st.session_state["selected_goal"]
+    st.markdown(
+        f"""
+        <div class="modal-art"><span>★</span><i>↗</i></div>
+        <div class="modal-eyebrow">RECAP에서 my PICK으로</div>
+        <h2 class="modal-title">{safe(plan['popup_title'])}</h2>
+        <p class="modal-body">{safe(plan['popup_body'])}</p>
+        <div class="modal-goal">2027 목표 · {safe(goal['title'])}</div>
+        """,
+        unsafe_allow_html=True,
+    )
+    if st.button("새로운 my PICK 보러가기", type="primary", use_container_width=True, key="open_mypick"):
+        st.session_state["flow_stage"] = "mypick"
+        st.rerun()
+    if st.button("Recap 더 보기", use_container_width=True, key="close_mypick"):
+        st.session_state["flow_stage"] = "recap"
+        st.rerun()
+
+
+def mypick_header(customer: dict[str, Any], goal: dict[str, Any]) -> None:
+    st.markdown(
+        f"""
+        <section class="mypick-shell">
+          <div class="mypick-top">‹ &nbsp;<b>my PICK</b><span>✦ AI UPDATE</span></div>
+          <div class="mypick-date">2027년 1월 8일 <i>▥</i></div>
+          <h1>{safe(customer['name'])}님의 투자 이야기</h1>
+          <div class="remember-chip">기억하고 있는 목표 · {safe(goal['title'])}</div>
+        </section>
         """,
         unsafe_allow_html=True,
     )
 
 
-data = demo_data()
-ensure_state(data)
-navigation = st.radio(
-    "페이지",
-    ["나의 리캡", "3인 비교", "Memory JSON"],
-    horizontal=True,
-    label_visibility="collapsed",
-)
+def mypick_view() -> None:
+    package = st.session_state["analysis_package"]
+    customer, metrics = package["customer"], package["metrics"]
+    goal, plan = st.session_state["selected_goal"], st.session_state["mypick_plan"]
+    progress_bar(3)
+    mypick_header(customer, goal)
+    st.markdown('<div class="mypick-section-title">내가 살펴본 종목</div>', unsafe_allow_html=True)
+    st.markdown(
+        f"""
+        <article class="watch-card">
+          <div class="stock-logo">{safe(plan['watch_symbol'][:2])}</div>
+          <div class="stock-copy"><b>{safe(plan['watch_title'])}</b><span>{safe(plan['watch_symbol'])}</span><p>{safe(plan['watch_reason'])}</p></div>
+          <div class="stock-tag">올해의 관심</div>
+        </article>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown('<div class="mypick-section-title">오늘의 시장 요약</div>', unsafe_allow_html=True)
+    st.markdown(
+        f"""
+        <article class="market-card">
+          <div class="market-icon">☾</div>
+          <div><h3>{safe(plan['market_title'])}</h3><p>{safe(plan['market_body'])}</p><span>내 관심 기반 요약 ›</span></div>
+        </article>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown('<div class="mypick-section-title">관심있을 만한 소식</div>', unsafe_allow_html=True)
+    for card in plan["content_cards"]:
+        icon = CONTENT_ICONS.get(card["icon"], "▤")
+        st.markdown(
+            f"""
+            <article class="content-card">
+              <div class="content-icon">{safe(icon)}</div>
+              <div><span>#{safe(card['category'])}</span><h3>{safe(card['title'])}</h3><p>{safe(card['description'])}</p><b>{safe(card['cta'])} ›</b></div>
+            </article>
+            """,
+            unsafe_allow_html=True,
+        )
+    st.markdown(
+        f"""
+        <article class="routine-card">
+          <div>↻</div><span>STAY WITH ME</span><h3>{safe(plan['routine_title'])}</h3>
+          <p>{safe(plan['routine_body'])}</p><small>{safe(plan['routine_frequency'])}</small>
+        </article>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="compliance-note">이 페이지는 과거 행동과 고객이 선택한 목표에 맞춰 정보의 우선순위를 구성한 데모이며, 투자 권유나 종목 추천이 아닙니다.</div>',
+        unsafe_allow_html=True,
+    )
+    with st.expander("저장된 AI Memory 확인"):
+        st.json(load_memories().get("customers", {}).get(customer["customer_id"], {}), expanded=False)
+    cols = st.columns(2)
+    with cols[0]:
+        if st.button("Recap 다시 보기", use_container_width=True):
+            st.session_state["flow_stage"] = "recap"
+            st.rerun()
+    with cols[1]:
+        if st.button("새 CSV 분석", type="primary", use_container_width=True):
+            reset_flow()
+    bottom_navigation()
 
-if navigation == "나의 리캡":
-    personal_view(data)
-elif navigation == "3인 비교":
-    compare_view(data)
+
+def bottom_navigation() -> None:
+    st.markdown(
+        """
+        <div class="ticker"><b>KOSPI</b><span>2,842.17</span><em>장종료</em></div>
+        <div class="bottom-nav"><b>⌂<small>홈</small></b><span>☆<small>관심종목</small></span><span>⌁<small>종합차트</small></span><span>☰<small>메뉴</small></span></div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+initialize_state()
+stage = st.session_state["flow_stage"]
+if stage == "upload":
+    upload_view()
+elif stage == "recap":
+    recap_view()
+elif stage == "ready":
+    recap_view(show_dialog=True)
+elif stage == "mypick":
+    mypick_view()
 else:
-    memory_view(data)
-
-footer_nav()
+    reset_flow()

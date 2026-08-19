@@ -52,6 +52,47 @@ def save_goal(
     return entry
 
 
+def save_journey_memory(
+    customer: dict[str, Any],
+    journey: dict[str, Any],
+    selected_goal: dict[str, Any],
+    mypick_plan: dict[str, Any] | None = None,
+    path: Path = DEFAULT_MEMORY_PATH,
+) -> dict[str, Any]:
+    """Persist the generated recap and the customer's zero-party goal for the demo."""
+    memory = load_memories(path)
+    customer_id = customer["customer_id"]
+    entry = {
+        "customer_id": customer_id,
+        "customer_name": customer["name"],
+        "goal_year": 2027,
+        "selected_goal": selected_goal,
+        "generated_goal_options": journey["goals"],
+        "recap": {
+            "recap_title": journey["recap_title"],
+            "analysis_summary": journey["analysis_summary"],
+            "investor_word": journey["investor_word"],
+            "slides": journey["slides"],
+        },
+        "mypick_plan": mypick_plan,
+        "source": "uploaded_annual_activity_csv",
+        "consent_scope": "crm_preference_demo",
+        "updated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+    }
+    memory.setdefault("customers", {})[customer_id] = entry
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle, temp_name = tempfile.mkstemp(prefix="memory_", suffix=".json", dir=path.parent)
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8") as file:
+            json.dump(memory, file, ensure_ascii=False, indent=2)
+        Path(temp_name).replace(path)
+    finally:
+        temp_path = Path(temp_name)
+        if temp_path.exists():
+            temp_path.unlink()
+    return entry
+
+
 def selected_goal(customer_id: str, default: str, path: Path = DEFAULT_MEMORY_PATH) -> str:
     return load_memories(path).get("customers", {}).get(customer_id, {}).get("selected_goal", default)
 
@@ -84,4 +125,3 @@ def crm_card(customer: dict[str, Any], metrics: dict[str, Any], goal: str) -> di
         "tone": "peach",
         "icon": "🌱",
     }
-

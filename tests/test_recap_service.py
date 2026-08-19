@@ -3,53 +3,82 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from src.recap_service import generate_recap
+from src.activity_upload import parse_activity_csv, sample_activity_csv
+from src.recap_service import fallback_journey, generate_journey, generate_mypick_plan
+
+
+JOURNEY_RESULT = {
+    "recap_title": "나의 투자기록",
+    "recap_subtitle": "한 해의 이야기",
+    "analysis_summary": "검증된 요약",
+    "investor_word": "리듬",
+    "slides": [
+        {"sequence": i, "kicker": "장면", "headline": "제목", "body": "내용", "evidence": "근거", "icon": icon}
+        for i, icon in enumerate(["taste", "stock", "market", "pattern", "journey"], start=1)
+    ],
+    "goals": [
+        {"goal_id": f"goal_{i}", "title": f"목표 {i}", "reason": "이유", "first_step": "첫 단계", "icon": "habit"}
+        for i in range(1, 4)
+    ],
+}
+
+MYPICK_RESULT = {
+    "popup_title": "새 my PICK",
+    "popup_body": "목표를 반영했어요.",
+    "watch_title": "엔비디아",
+    "watch_symbol": "NVDA",
+    "watch_reason": "기존 관심 종목",
+    "market_title": "시장 요약",
+    "market_body": "관심 기반 요약",
+    "content_cards": [
+        {"category": "기초", "title": f"콘텐츠 {i}", "description": "설명", "cta": "보기", "icon": "lesson"}
+        for i in range(1, 4)
+    ],
+    "routine_title": "월간 체크",
+    "routine_body": "한 달마다 확인",
+    "routine_frequency": "매월 말",
+}
 
 
 class FakeResponses:
-    def __init__(self):
-        self.kwargs = None
+    calls = []
 
     def create(self, **kwargs):
-        self.kwargs = kwargs
-        return SimpleNamespace(
-            output_text=json.dumps(
-                {
-                    "pattern_name": "근거형 투자자",
-                    "headline": "근거로 돌아본 한 해",
-                    "story": "평균 보유기간과 관심 테마를 함께 살펴봤어요.",
-                    "strength": "일관성이 있었어요.",
-                    "watchout": "분산을 점검해볼 수 있어요.",
-                    "recommended_goal": "분산투자 이해하기",
-                },
-                ensure_ascii=False,
-            )
-        )
+        FakeResponses.calls.append(kwargs)
+        schema_name = kwargs["text"]["format"]["name"]
+        result = JOURNEY_RESULT if schema_name == "investment_recap_journey" else MYPICK_RESULT
+        return SimpleNamespace(output_text=json.dumps(result, ensure_ascii=False))
 
 
 class FakeClient:
-    last_instance = None
-
     def __init__(self, api_key):
         self.api_key = api_key
         self.responses = FakeResponses()
-        FakeClient.last_instance = self
 
 
 class RecapServiceTest(unittest.TestCase):
-    def test_uses_responses_structured_output(self):
-        customer = {
-            "customer_id": "C001",
-            "name": "김준호",
-            "goal_options": ["분산투자 이해하기", "장기투자 습관 만들기"],
-        }
+    def setUp(self):
+        FakeResponses.calls = []
+
+    def test_two_stage_pipeline_uses_strict_structured_outputs(self):
+        customer = {"customer_id": "C001", "name": "김준호"}
+        metrics = {"top_symbol": "NVDA"}
         with patch("openai.OpenAI", FakeClient):
-            result = generate_recap(customer, {"avg_holding_days": 42}, "test-key", "test-model")
-        request = FakeClient.last_instance.responses.kwargs
-        self.assertEqual(result["recommended_goal"], "분산투자 이해하기")
-        self.assertEqual(request["model"], "test-model")
-        self.assertEqual(request["text"]["format"]["type"], "json_schema")
-        self.assertTrue(request["text"]["format"]["strict"])
+            journey = generate_journey(customer, metrics, "test-key", "test-model")
+            plan = generate_mypick_plan(customer, metrics, journey, journey["goals"][0], "test-key", "test-model")
+        self.assertEqual(len(journey["slides"]), 5)
+        self.assertEqual(len(journey["goals"]), 3)
+        self.assertEqual(len(plan["content_cards"]), 3)
+        self.assertEqual([call["text"]["format"]["name"] for call in FakeResponses.calls], ["investment_recap_journey", "mypick_personalization"])
+        self.assertTrue(all(call["text"]["format"]["strict"] for call in FakeResponses.calls))
+
+    def test_fallback_goals_are_generated_from_each_personas_metrics(self):
+        goal_sets = []
+        for customer_id in ("C001", "C002", "C003"):
+            package = parse_activity_csv(sample_activity_csv(customer_id))
+            journey = fallback_journey(package["customer"], package["metrics"])
+            goal_sets.append(tuple(goal["title"] for goal in journey["goals"]))
+        self.assertEqual(len(set(goal_sets)), 3)
 
 
 if __name__ == "__main__":
