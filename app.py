@@ -20,7 +20,7 @@ from src.styles import CSS
 
 
 st.set_page_config(
-    page_title="Remember Me AI | 2026 Investment Recap",
+    page_title="Remember me AI | 2026 mPOP Recap",
     page_icon="💙",
     layout="centered",
     initial_sidebar_state="collapsed",
@@ -45,7 +45,6 @@ def initialize_state() -> None:
         "selected_goal": None,
         "mypick_plan": None,
         "ai_source": None,
-        "session_api_key": "",
         "flow_notice": None,
     }
     for key, value in defaults.items():
@@ -60,7 +59,7 @@ def reset_flow() -> None:
 
 
 def progress_bar(active: int) -> None:
-    labels = ["투자 활동 분석", "AI Recap", "AI 추천 목표", "my PICK"]
+    labels = ["AI 투자 활동 분석", "AI Recap", "AI 추천 목표", "my PICK"]
     steps = "".join(
         f'<div class="flow-step {"done" if index < active else "active" if index == active else ""}"><i>{index + 1}</i><span>{label}</span></div>'
         for index, label in enumerate(labels)
@@ -75,28 +74,13 @@ def app_wordmark(back_label: str = "mPOP") -> None:
     )
 
 
-def api_settings() -> None:
-    secret_key = get_api_key(st.session_state.get("session_api_key"), st.secrets)
-    with st.expander("AI 연결 설정", expanded=False):
-        status = "연결 준비 완료" if secret_key else "데모 문구 모드"
-        st.caption(f"현재 상태: {status} · 키는 화면이나 로그에 표시하지 않습니다.")
-        key = st.text_input(
-            "OpenAI API key",
-            type="password",
-            value=st.session_state.get("session_api_key", ""),
-            placeholder="Streamlit Secrets 사용 시 비워두세요",
-        )
-        st.session_state["session_api_key"] = key
-        st.caption(f"Model: {get_model(st.secrets)} · Responses API Structured Output")
-
-
 def run_customer_analysis(customer_id: str, customer_name: str) -> None:
     try:
         with st.status("투자 기록을 읽고 있어요", expanded=True) as status:
             st.write(f"{customer_name}님의 연간 거래·관심·콘텐츠 기록을 불러오는 중...")
             package = parse_activity_csv(sample_activity_csv(customer_id), customer_name)
-            st.write("반복된 종목·테마·시장 행동을 찾는 중...")
-            api_key = get_api_key(st.session_state.get("session_api_key"), st.secrets)
+            st.write("관심 종목·테마를 불러오는 중...")
+            api_key = get_api_key(secrets=st.secrets)
             model = get_model(st.secrets)
             if api_key:
                 st.write("AI가 Recap 장면과 다음 목표를 구성하는 중...")
@@ -159,10 +143,9 @@ def upload_view() -> None:
         if st.button(f"{customer['name']} 고객 분석하기", key=f"analyze_{customer['id']}", use_container_width=True):
             run_customer_analysis(customer["id"], customer["name"])
     st.markdown(
-        '<div class="privacy-note"><b>가상 고객 데이터</b><span>세 고객의 거래·관심·콘텐츠 기록은 모두 데모용이며, API에는 검증·집계된 행동지표만 전달합니다.</span></div>',
+        '<div class="privacy-note"><b>가상 고객 데이터</b><span>세 고객의 거래·관심·콘텐츠 기록은 모두 데모용으로 Streamlit 클라우드 DB에 저장되어 있습니다.</span></div>',
         unsafe_allow_html=True,
     )
-    api_settings()
 
 
 def recap_hero(customer: dict[str, Any], journey: dict[str, Any], source: str) -> None:
@@ -214,7 +197,7 @@ def choose_goal(goal: dict[str, Any]) -> None:
     package = st.session_state["analysis_package"]
     journey = st.session_state["journey"]
     customer, metrics = package["customer"], package["metrics"]
-    api_key = get_api_key(st.session_state.get("session_api_key"), st.secrets)
+    api_key = get_api_key(secrets=st.secrets)
     model = get_model(st.secrets)
     with st.spinner("선택한 AI 추천 목표에 맞는 리포트와 뉴스를 my PICK에 연결하고 있어요..."):
         if api_key:
