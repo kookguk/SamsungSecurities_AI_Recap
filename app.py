@@ -311,7 +311,7 @@ def mypick_header(customer: dict[str, Any], goal: dict[str, Any]) -> None:
           <div class="mypick-top">‹ &nbsp;<b>my PICK</b><span>✦ AI UPDATE</span></div>
           <div class="mypick-date">2027년 1월 8일 <i>▥</i></div>
           <h1>{safe(customer['name'])}님의 투자 이야기</h1>
-          <div class="remember-chip">기억하고 있는 AI 추천 목표 · {safe(goal['title'])}</div>
+          <div class="remember-chip">다가오는 해의 목표 · {safe(goal['title'])}</div>
         </section>
         """,
         unsafe_allow_html=True,
@@ -335,7 +335,7 @@ def mypick_view() -> None:
         """,
         unsafe_allow_html=True,
     )
-    st.markdown('<div class="mypick-section-title">오늘의 시장 요약</div>', unsafe_allow_html=True)
+    st.markdown('<div class="mypick-section-title">오늘의 시황 요약</div>', unsafe_allow_html=True)
     st.markdown(
         f"""
         <article class="market-card">
@@ -367,7 +367,7 @@ def mypick_view() -> None:
         unsafe_allow_html=True,
     )
     st.markdown(
-        '<div class="compliance-note">이 페이지는 과거 행동과 고객이 선택한 AI 추천 목표에 맞춰 리포트·뉴스·시장정보의 우선순위를 구성한 데모이며, 투자 권유나 종목 추천이 아닙니다.</div>',
+        '<div class="compliance-note">이 페이지는 연말 Recap과 고객이 선택한 AI 추천 목표에 맞춰 새롭게 구성된 my PICK 페이지입니다.</div>',
         unsafe_allow_html=True,
     )
     with st.expander("저장된 AI Memory 확인"):
