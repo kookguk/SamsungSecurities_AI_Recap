@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "customers": {
+    "C001": {
+      "customer_id": "C001",
+      "customer_name": "김준호",
+      "goal_year": 2027,
+      "selected_goal": "분산투자 이해하기",
+      "source": "remember_me_recap",
+      "consent_scope": "crm_preference_demo",
+      "updated_at": "2026-08-19T20:00:00+09:00"
+    },
+    "C002": {
+      "customer_id": "C002",
+      "customer_name": "이서연",
+      "goal_year": 2027,
+      "selected_goal": "절세 투자 공부하기",
+      "source": "remember_me_recap",
+      "consent_scope": "crm_preference_demo",
+      "updated_at": "2026-08-19T20:00:00+09:00"
+    },
+    "C003": {
+      "customer_id": "C003",
+      "customer_name": "박민수",
+      "goal_year": 2027,
+      "selected_goal": "장기투자 습관 만들기",
+      "source": "remember_me_recap",
+      "consent_scope": "crm_preference_demo",
+      "updated_at": "2026-08-19T20:00:00+09:00"
+    }
+  }
+}
+

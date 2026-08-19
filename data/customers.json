@@ -1,0 +1,36 @@
+[
+  {
+    "customer_id": "C001",
+    "name": "김준호",
+    "age_group": "30대",
+    "persona": "테마 집중형",
+    "avatar": "🚀",
+    "accent": "#1687D9",
+    "soft": "#E7F5FF",
+    "default_goal": "분산투자 이해하기",
+    "goal_options": ["분산투자 이해하기", "장기투자 습관 만들기", "절세 투자 공부하기"]
+  },
+  {
+    "customer_id": "C002",
+    "name": "이서연",
+    "age_group": "40대",
+    "persona": "장기 루틴형",
+    "avatar": "🌿",
+    "accent": "#079A76",
+    "soft": "#E5F8F2",
+    "default_goal": "절세 투자 공부하기",
+    "goal_options": ["절세 투자 공부하기", "분산투자 이해하기", "장기투자 습관 만들기"]
+  },
+  {
+    "customer_id": "C003",
+    "name": "박민수",
+    "age_group": "20대",
+    "persona": "민감 반응형",
+    "avatar": "⚡",
+    "accent": "#E86B35",
+    "soft": "#FFF0E7",
+    "default_goal": "장기투자 습관 만들기",
+    "goal_options": ["장기투자 습관 만들기", "분산투자 이해하기", "절세 투자 공부하기"]
+  }
+]
+
