@@ -83,7 +83,7 @@ def run_customer_analysis(customer_id: str, customer_name: str) -> None:
             api_key = get_api_key(secrets=st.secrets)
             model = get_model(st.secrets)
             if api_key:
-                st.write("AI가 Recap 장면과 다음 목표를 구성하는 중...")
+                st.write("AI가 Recap과 다음 해 목표를 생성하는 중...")
                 try:
                     journey = generate_journey(package["customer"], package["metrics"], api_key, model)
                     ai_source = f"OpenAI · {model}"
