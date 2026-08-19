@@ -17,7 +17,7 @@ JOURNEY_RESULT = {
         for i, icon in enumerate(["taste", "stock", "market", "pattern", "journey"], start=1)
     ],
     "goals": [
-        {"goal_id": f"goal_{i}", "title": f"목표 {i}", "reason": "이유", "first_step": "첫 단계", "icon": "habit"}
+        {"goal_id": f"goal_{i}", "title": f"관심 목표 {i}", "reason": "이유", "content_focus": "리포트와 뉴스", "icon": "habit"}
         for i in range(1, 4)
     ],
 }
@@ -34,9 +34,9 @@ MYPICK_RESULT = {
         {"category": "기초", "title": f"콘텐츠 {i}", "description": "설명", "cta": "보기", "icon": "lesson"}
         for i in range(1, 4)
     ],
-    "routine_title": "월간 체크",
-    "routine_body": "한 달마다 확인",
-    "routine_frequency": "매월 말",
+    "update_title": "맞춤 피드",
+    "update_body": "리포트와 뉴스 업데이트",
+    "update_frequency": "새 콘텐츠 발행 시",
 }
 
 
@@ -78,6 +78,7 @@ class RecapServiceTest(unittest.TestCase):
             package = parse_activity_csv(sample_activity_csv(customer_id))
             journey = fallback_journey(package["customer"], package["metrics"])
             goal_sets.append(tuple(goal["title"] for goal in journey["goals"]))
+            self.assertTrue(all("content_focus" in goal for goal in journey["goals"]))
         self.assertEqual(len(set(goal_sets)), 3)
 
 

@@ -30,6 +30,10 @@ html, body, [class*="css"], [data-testid="stAppViewContainer"] {
 .upload-orbit { width:96px; height:96px; margin:24px auto 6px; border-radius:28px; background:linear-gradient(145deg,#1f75eb,#735ee9); color:#fff; display:flex; align-items:center; justify-content:center; position:relative; box-shadow:0 18px 30px rgba(43,91,218,.25); transform:rotate(-4deg); }
 .upload-orbit b { font-size:27px; }.upload-orbit span,.upload-orbit i { position:absolute; font-style:normal; color:#7ddcff; font-size:21px; }.upload-orbit span { left:-20px; top:7px; }.upload-orbit i { right:-24px; bottom:6px; }
 .section-heading { color:#142b64; font-size:20px; font-weight:800; letter-spacing:-.035em; margin:27px 2px 13px; }
+.customer-card { --accent:#176ee8; --soft:#e6f2ff; display:grid; grid-template-columns:52px 1fr auto; gap:14px; align-items:center; background:#fff; border:1px solid #e7edf5; border-radius:20px; padding:17px; margin:12px 0 7px; box-shadow:0 8px 24px rgba(31,48,82,.06); }
+.customer-card.green { --accent:#078f71; --soft:#e3f7f0; }.customer-card.orange { --accent:#dd713f; --soft:#fff0e7; }
+.customer-avatar { width:52px; height:52px; border-radius:17px; background:var(--soft); display:flex; align-items:center; justify-content:center; font-size:25px; }
+.customer-card span { color:var(--accent); font-size:10px; font-weight:800; }.customer-card h3 { color:#18233a; font-size:19px; margin:2px 0 3px; }.customer-card p { color:#758195; font-size:11px; margin:0; }.customer-card i { color:var(--accent); font-size:25px; font-style:normal; }
 
 [data-testid="stFileUploader"] { background:#fff; border:1px dashed #9fc7eb; border-radius:20px; padding:8px; }
 [data-testid="stFileUploaderDropzone"] { background:#f7fbff; border:0; border-radius:15px; }
