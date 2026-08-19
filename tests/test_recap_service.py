@@ -24,7 +24,6 @@ JOURNEY_RESULT = {
 
 MYPICK_RESULT = {
     "popup_title": "새 my PICK",
-    "popup_body": "목표를 반영했어요.",
     "watch_title": "엔비디아",
     "watch_symbol": "NVDA",
     "watch_reason": "기존 관심 종목",

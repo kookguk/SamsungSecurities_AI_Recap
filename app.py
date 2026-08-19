@@ -44,7 +44,6 @@ def initialize_state() -> None:
         "journey": None,
         "selected_goal": None,
         "mypick_plan": None,
-        "ai_source": None,
         "flow_notice": None,
     }
     for key, value in defaults.items():
@@ -52,7 +51,7 @@ def initialize_state() -> None:
 
 
 def reset_flow() -> None:
-    for key in ("analysis_package", "journey", "selected_goal", "mypick_plan", "ai_source", "flow_notice"):
+    for key in ("analysis_package", "journey", "selected_goal", "mypick_plan", "flow_notice"):
         st.session_state[key] = None
     st.session_state["flow_stage"] = "upload"
     st.rerun()
@@ -86,20 +85,16 @@ def run_customer_analysis(customer_id: str, customer_name: str) -> None:
                 st.write("AI가 Recap과 다음 해 목표를 생성하는 중...")
                 try:
                     journey = generate_journey(package["customer"], package["metrics"], api_key, model)
-                    ai_source = f"OpenAI · {model}"
                 except Exception as error:
                     journey = fallback_journey(package["customer"], package["metrics"])
-                    ai_source = "Grounded demo fallback"
                     st.session_state["flow_notice"] = f"OpenAI 호출이 완료되지 않아 근거 기반 데모 문구를 사용했습니다: {error}"
             else:
                 journey = fallback_journey(package["customer"], package["metrics"])
-                ai_source = "Grounded demo fallback"
                 st.session_state["flow_notice"] = "API key가 없어 근거 기반 데모 문구로 진행했습니다. Secrets 연결 후에는 AI가 모든 문구를 새로 생성합니다."
             status.update(label="2026 Investment Recap이 준비됐어요", state="complete", expanded=False)
         package["source_name"] = f"virtual_customer_{customer_id}_2026"
         st.session_state["analysis_package"] = package
         st.session_state["journey"] = journey
-        st.session_state["ai_source"] = ai_source
         st.session_state["flow_stage"] = "recap"
         st.rerun()
     except ValueError as error:
@@ -148,7 +143,7 @@ def upload_view() -> None:
     )
 
 
-def recap_hero(customer: dict[str, Any], journey: dict[str, Any], source: str) -> None:
+def recap_hero(journey: dict[str, Any]) -> None:
     st.markdown(
         f"""
         <section class="recap-hero">
@@ -156,7 +151,6 @@ def recap_hero(customer: dict[str, Any], journey: dict[str, Any], source: str) -
           <div class="recap-trophy"><i>✦</i><b>AI</b><span>↗</span></div>
           <h1>{safe(journey['recap_title'])}</h1>
           <p>{safe(journey['recap_subtitle'])}</p>
-          <div class="ai-badge">✦ {safe(source)}</div>
         </section>
         """,
         unsafe_allow_html=True,
@@ -203,7 +197,6 @@ def choose_goal(goal: dict[str, Any]) -> None:
         if api_key:
             try:
                 plan = generate_mypick_plan(customer, metrics, journey, goal, api_key, model)
-                st.session_state["ai_source"] = f"OpenAI · {model}"
             except Exception as error:
                 plan = fallback_mypick(customer, metrics, journey, goal)
                 st.session_state["flow_notice"] = f"my PICK AI 호출이 완료되지 않아 데모 구성을 사용했습니다: {error}"
@@ -233,7 +226,7 @@ def goal_cards(journey: dict[str, Any]) -> None:
             f"""
             <article class="goal-card">
               <div class="goal-icon">{safe(icon)}</div>
-              <div><span>AI 추천 목표 {index}</span><h3>{safe(goal['title'])}</h3><p>{safe(goal['reason'])}</p><small>my PICK 연결 · {safe(goal['content_focus'])}</small></div>
+              <div><span>AI 추천 목표 {index}</span><h3>{safe(goal['title'])}</h3><p>{safe(goal['reason'])}</p></div>
             </article>
             """,
             unsafe_allow_html=True,
@@ -247,7 +240,7 @@ def recap_view(show_dialog: bool = False) -> None:
     journey = st.session_state["journey"]
     app_wordmark("mPOP")
     progress_bar(3 if show_dialog else 1)
-    recap_hero(package["customer"], journey, st.session_state["ai_source"])
+    recap_hero(journey)
     metric_strip(package["metrics"])
     notice = st.session_state.get("flow_notice")
     if notice:
@@ -274,7 +267,7 @@ def mypick_ready_dialog() -> None:
         <div class="modal-art"><span>★</span><i>↗</i></div>
         <div class="modal-eyebrow">RECAP에서 my PICK으로</div>
         <h2 class="modal-title">{safe(plan['popup_title'])}</h2>
-        <p class="modal-body">{safe(plan['popup_body'])}</p>
+        <p class="modal-body">업데이트된 my PICK을 확인하고 내년에도 열심히 투자해봐요</p>
         <div class="modal-goal">2027 AI 추천 목표 · {safe(goal['title'])}</div>
         """,
         unsafe_allow_html=True,
@@ -292,7 +285,7 @@ def mypick_header(customer: dict[str, Any], goal: dict[str, Any]) -> None:
         f"""
         <section class="mypick-shell">
           <div class="mypick-top">‹ &nbsp;<b>my PICK</b><span>✦ AI UPDATE</span></div>
-          <div class="mypick-date">2027년 1월 8일 <i>▥</i></div>
+          <div class="mypick-date">2027년 1월 1일 <i>▥</i></div>
           <h1>{safe(customer['name'])}님의 투자 이야기</h1>
           <div class="remember-chip">다가오는 해의 목표 · {safe(goal['title'])}</div>
         </section>

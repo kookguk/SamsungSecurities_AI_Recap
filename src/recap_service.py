@@ -64,7 +64,6 @@ MYPICK_SCHEMA = {
     "additionalProperties": False,
     "properties": {
         "popup_title": {"type": "string"},
-        "popup_body": {"type": "string"},
         "watch_title": {"type": "string"},
         "watch_symbol": {"type": "string"},
         "watch_reason": {"type": "string"},
@@ -77,7 +76,6 @@ MYPICK_SCHEMA = {
     },
     "required": [
         "popup_title",
-        "popup_body",
         "watch_title",
         "watch_symbol",
         "watch_reason",
@@ -174,8 +172,8 @@ def generate_mypick_plan(
         "연결해 my PICK 페이지 구성을 만든다. 선택한 목표의 content_focus를 최우선 기준으로 제공된 콘텐츠 카탈로그 "
         "안에서 가장 적합한 3개 모듈을 선택해 "
         "고객 언어로 재작성한다. 세 모듈에는 리포트와 뉴스가 각각 최소 1개 포함되어야 한다. watch 항목은 고객이 이미 거래하거나 관심을 보인 top_symbol만 사용하고 신규 종목을 "
-        "추천하지 않는다. 최신 시세·뉴스를 아는 척하지 않으며, 매수·매도·수익 보장 표현을 금지한다. 팝업은 "
-        "'새롭게 업데이트된 my PICK을 확인해볼까요?'라는 의미를 담되 고객의 목표와 연결해 2문장 이내로 쓴다. "
+        "추천하지 않는다. 최신 시세·뉴스를 아는 척하지 않으며, 매수·매도·수익 보장 표현을 금지한다. popup_title은 "
+        "'새롭게 업데이트된 my PICK을 확인해볼까요?'라는 의미를 담아 짧게 쓴다. 팝업 본문은 화면에서 고정 문구로 제공된다. "
         "모든 문구는 짧고 모바일 화면에 적합하게 작성한다. update 항목은 고객 행동을 요구하는 루틴이 아니라 "
         "선택한 AI 추천 목표에 맞춰 my PICK 피드가 어떤 주기와 내용으로 갱신되는지 설명한다."
     )
@@ -284,7 +282,6 @@ def fallback_mypick(
     goal_title = goal["title"]
     return {
         "popup_title": "새롭게 업데이트된 my PICK을 확인해볼까요?",
-        "popup_body": f"{name}님의 Recap과 AI 추천 목표 ‘{goal_title}’을 반영해 리포트와 뉴스의 우선순위를 새로 구성했어요.",
         "watch_title": top_asset,
         "watch_symbol": top_symbol,
         "watch_reason": "올해 가장 자주 만난 종목의 리서치·공시·산업 뉴스를 모아서 확인할 수 있어요.",
