@@ -60,7 +60,7 @@ def reset_flow() -> None:
 
 
 def progress_bar(active: int) -> None:
-    labels = ["투자 활동 분석", "AI Recap", "관심 목표", "my PICK"]
+    labels = ["투자 활동 분석", "AI Recap", "AI 추천 목표", "my PICK"]
     steps = "".join(
         f'<div class="flow-step {"done" if index < active else "active" if index == active else ""}"><i>{index + 1}</i><span>{label}</span></div>'
         for index, label in enumerate(labels)
@@ -216,7 +216,7 @@ def choose_goal(goal: dict[str, Any]) -> None:
     customer, metrics = package["customer"], package["metrics"]
     api_key = get_api_key(st.session_state.get("session_api_key"), st.secrets)
     model = get_model(st.secrets)
-    with st.spinner("선택한 관심 목표에 맞는 리포트와 뉴스를 my PICK에 연결하고 있어요..."):
+    with st.spinner("선택한 AI 추천 목표에 맞는 리포트와 뉴스를 my PICK에 연결하고 있어요..."):
         if api_key:
             try:
                 plan = generate_mypick_plan(customer, metrics, journey, goal, api_key, model)
@@ -239,7 +239,7 @@ def goal_cards(journey: dict[str, Any]) -> None:
         <section class="goal-intro">
           <span>AI NEXT GOAL</span>
           <h2>2027년 my PICK에서 무엇을 더 보고 싶나요?</h2>
-          <p>올해의 Recap을 바탕으로 AI가 추천한 세 가지 정보 관심 목표예요.</p>
+          <p>올해의 Recap을 바탕으로 만든 AI 추천 목표 3개예요.</p>
         </section>
         """,
         unsafe_allow_html=True,
@@ -250,7 +250,7 @@ def goal_cards(journey: dict[str, Any]) -> None:
             f"""
             <article class="goal-card">
               <div class="goal-icon">{safe(icon)}</div>
-              <div><span>추천 관심 목표 {index}</span><h3>{safe(goal['title'])}</h3><p>{safe(goal['reason'])}</p><small>my PICK 연결 · {safe(goal['content_focus'])}</small></div>
+              <div><span>AI 추천 목표 {index}</span><h3>{safe(goal['title'])}</h3><p>{safe(goal['reason'])}</p><small>my PICK 연결 · {safe(goal['content_focus'])}</small></div>
             </article>
             """,
             unsafe_allow_html=True,
@@ -292,7 +292,7 @@ def mypick_ready_dialog() -> None:
         <div class="modal-eyebrow">RECAP에서 my PICK으로</div>
         <h2 class="modal-title">{safe(plan['popup_title'])}</h2>
         <p class="modal-body">{safe(plan['popup_body'])}</p>
-        <div class="modal-goal">2027 관심 목표 · {safe(goal['title'])}</div>
+        <div class="modal-goal">2027 AI 추천 목표 · {safe(goal['title'])}</div>
         """,
         unsafe_allow_html=True,
     )
@@ -311,7 +311,7 @@ def mypick_header(customer: dict[str, Any], goal: dict[str, Any]) -> None:
           <div class="mypick-top">‹ &nbsp;<b>my PICK</b><span>✦ AI UPDATE</span></div>
           <div class="mypick-date">2027년 1월 8일 <i>▥</i></div>
           <h1>{safe(customer['name'])}님의 투자 이야기</h1>
-          <div class="remember-chip">기억하고 있는 관심 목표 · {safe(goal['title'])}</div>
+          <div class="remember-chip">기억하고 있는 AI 추천 목표 · {safe(goal['title'])}</div>
         </section>
         """,
         unsafe_allow_html=True,
@@ -367,7 +367,7 @@ def mypick_view() -> None:
         unsafe_allow_html=True,
     )
     st.markdown(
-        '<div class="compliance-note">이 페이지는 과거 행동과 고객이 선택한 관심 목표에 맞춰 리포트·뉴스·시장정보의 우선순위를 구성한 데모이며, 투자 권유나 종목 추천이 아닙니다.</div>',
+        '<div class="compliance-note">이 페이지는 과거 행동과 고객이 선택한 AI 추천 목표에 맞춰 리포트·뉴스·시장정보의 우선순위를 구성한 데모이며, 투자 권유나 종목 추천이 아닙니다.</div>',
         unsafe_allow_html=True,
     )
     with st.expander("저장된 AI Memory 확인"):

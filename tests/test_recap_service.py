@@ -17,7 +17,7 @@ JOURNEY_RESULT = {
         for i, icon in enumerate(["taste", "stock", "market", "pattern", "journey"], start=1)
     ],
     "goals": [
-        {"goal_id": f"goal_{i}", "title": f"관심 목표 {i}", "reason": "이유", "content_focus": "리포트와 뉴스", "icon": "habit"}
+        {"goal_id": f"goal_{i}", "title": f"AI 추천 목표 {i}", "reason": "이유", "content_focus": "리포트와 뉴스", "icon": "habit"}
         for i in range(1, 4)
     ],
 }

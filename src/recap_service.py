@@ -150,7 +150,7 @@ def generate_journey(customer: dict[str, Any], metrics: dict[str, Any], api_key:
         "③시장 변동 순간의 선택 ④한 단어로 표현한 패턴 ⑤내년으로 이어지는 여정을 다룬다. 각 headline은 "
         "22자 이내의 감성 카피, body는 2문장 이내, evidence는 입력 수치를 짧게 표시한다. investor_word는 "
         "긍정적이고 중립적인 한국어 명사 1개다. goals는 사전 정의 목록에서 고르는 것이 아니라 Recap을 근거로 "
-        "새롭게 추천하는 서로 다른 '정보 관심 목표' 3개다. 이 목표는 고객이 직접 수행할 행동 계획이 아니라 "
+        "새롭게 만드는 서로 다른 'AI 추천 목표' 3개다. 이 목표는 고객이 직접 수행할 행동 계획이 아니라 "
         "2027년 my PICK이 지속적으로 찾아서 우선 노출할 리포트·뉴스·시황의 주제를 뜻한다. title은 18자 이내로 "
         "'AI·반도체 흐름 깊이 보기', '시장 변동성 먼저 읽기'처럼 작성한다. 기록하기, 습관 만들기, 횟수 정하기 등 "
         "고객의 실행 과제를 목표로 추천하지 않는다. content_focus에는 my PICK에 연결할 구체적인 리포트·뉴스 유형을 "
@@ -177,7 +177,7 @@ def generate_mypick_plan(
         "추천하지 않는다. 최신 시세·뉴스를 아는 척하지 않으며, 매수·매도·수익 보장 표현을 금지한다. 팝업은 "
         "'새롭게 업데이트된 my PICK을 확인해볼까요?'라는 의미를 담되 고객의 목표와 연결해 2문장 이내로 쓴다. "
         "모든 문구는 짧고 모바일 화면에 적합하게 작성한다. update 항목은 고객 행동을 요구하는 루틴이 아니라 "
-        "선택한 관심 목표에 맞춰 my PICK 피드가 어떤 주기와 내용으로 갱신되는지 설명한다."
+        "선택한 AI 추천 목표에 맞춰 my PICK 피드가 어떤 주기와 내용으로 갱신되는지 설명한다."
     )
     return _structured_response(
         api_key=api_key,
@@ -239,7 +239,7 @@ def fallback_journey(customer: dict[str, Any], metrics: dict[str, Any]) -> dict[
             "kicker": "NEXT 2027",
             "headline": "기록은 끝나도 여정은 계속됩니다",
             "body": "올해의 행동을 바탕으로 내년 my PICK에서 이어볼 관심 정보 주제를 준비했어요.",
-            "evidence": "Recap 기반 관심 목표 3개 생성",
+            "evidence": "Recap 기반 AI 추천 목표 3개 생성",
             "icon": "journey",
         },
     ]
@@ -284,7 +284,7 @@ def fallback_mypick(
     goal_title = goal["title"]
     return {
         "popup_title": "새롭게 업데이트된 my PICK을 확인해볼까요?",
-        "popup_body": f"{name}님의 Recap과 ‘{goal_title}’ 관심 목표를 반영해 리포트와 뉴스의 우선순위를 새로 구성했어요.",
+        "popup_body": f"{name}님의 Recap과 AI 추천 목표 ‘{goal_title}’을 반영해 리포트와 뉴스의 우선순위를 새로 구성했어요.",
         "watch_title": top_asset,
         "watch_symbol": top_symbol,
         "watch_reason": "올해 가장 자주 만난 종목의 리서치·공시·산업 뉴스를 모아서 확인할 수 있어요.",

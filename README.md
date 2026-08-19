@@ -1,6 +1,6 @@
 # Remember Me AI — Recap to my PICK Demo
 
-세 명의 가상 고객 중 한 명을 선택해 **투자 활동 분석 → AI Investment Recap → 관심 목표 선택 → 개인화 my PICK**으로 연결하는 Streamlit 데모입니다.
+세 명의 가상 고객 중 한 명을 선택해 **투자 활동 분석 → AI Investment Recap → AI 추천 목표 선택 → 개인화 my PICK**으로 연결하는 Streamlit 데모입니다.
 
 ## 사용자 흐름
 
@@ -11,9 +11,9 @@
         ↓
 AI가 Recap 5개 장면 생성
         ↓
-AI가 my PICK용 정보 관심 목표 3개 추천
+AI가 my PICK용 AI 추천 목표 3개 생성
         ↓
-고객이 내년에 더 보고 싶은 관심 목표 선택
+고객이 AI 추천 목표 중 하나를 선택
         ↓
 AI가 관련 리포트·뉴스·시황을 my PICK에 구성
         ↓
@@ -26,7 +26,7 @@ AI가 관련 리포트·뉴스·시황을 my PICK에 구성
 - 시장 변동성 먼저 읽기 → 급등락 시황·리스크 해설
 - 금리·채권 변화 살펴보기 → 중앙은행 뉴스·채권시장 리포트
 
-API key가 없으면 계산된 지표에 기반한 고객별 데모 문구로 전체 흐름이 동작합니다. API key가 연결되면 Recap, 관심 목표, my PICK 구성을 OpenAI Responses API가 Structured Output으로 생성합니다.
+API key가 없으면 계산된 지표에 기반한 고객별 데모 문구로 전체 흐름이 동작합니다. API key가 연결되면 Recap, AI 추천 목표, my PICK 구성을 OpenAI Responses API가 Structured Output으로 생성합니다.
 
 ## 실행
 
@@ -57,7 +57,7 @@ Python은 가상 고객의 연간 기록에서 다음 값을 먼저 계산합니
 - 가장 자주 거래한 종목·시장
 - 관심종목 및 콘텐츠 주제·체류시간
 
-AI에는 원본 행이 아니라 검증·집계된 지표만 전달됩니다. 첫 번째 호출은 Recap과 정보 관심 목표 3개를 만들고, 고객이 목표를 고르면 두 번째 호출이 카탈로그에서 관련 리포트·뉴스·시황을 골라 my PICK을 구성합니다.
+AI에는 원본 행이 아니라 검증·집계된 지표만 전달됩니다. 첫 번째 호출은 Recap과 AI 추천 목표 3개를 만들고, 고객이 목표를 고르면 두 번째 호출이 카탈로그에서 관련 리포트·뉴스·시황을 골라 my PICK을 구성합니다.
 
 특정 종목 추천, 가격 전망, 수익 보장, 매수·매도 지시는 프롬프트에서 금지합니다.
 
@@ -67,7 +67,7 @@ AI에는 원본 행이 아니라 검증·집계된 지표만 전달됩니다. �
 app.py                       3인 선택과 전체 Streamlit 흐름
 src/activity_upload.py       가상 고객 데이터 통합
 src/analytics.py             결정적 행동지표 계산
-src/recap_service.py         Recap·관심 목표·my PICK AI 생성
+src/recap_service.py         Recap·AI 추천 목표·my PICK AI 생성
 src/memory_store.py          Recap·선택 목표·my PICK JSON 저장
 src/styles.py                Recap·팝업·my PICK 모바일 스타일
 memory/customer_memory.json  데모용 AI Customer Memory
